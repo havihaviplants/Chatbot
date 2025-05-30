@@ -1,16 +1,145 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GPT Chatbot</title>
+  <title>GPT 챗봇</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f8f8f8;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+    }
+
+    #messages {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+      max-height: 400px;
+      overflow-y: auto;
+      padding: 10px;
+      background: #ffffff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+
+    .message {
+      padding: 8px 12px;
+      border-radius: 8px;
+      max-width: 80%;
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+
+    .gpt {
+      background-color: #f0f0f0;
+      color: #333;
+      align-self: flex-start;
+    }
+
+    .user {
+      background-color: #cce5ff;
+      color: #000;
+      align-self: flex-end;
+    }
+
+    .loading {
+      font-style: italic;
+      color: #888;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0% { opacity: 0.2; }
+      50% { opacity: 1; }
+      100% { opacity: 0.2; }
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      font-size: 14px;
+    }
+
+    button {
+      margin-top: 10px;
+      padding: 8px 12px;
+    }
+  </style>
 </head>
 <body>
   <h2>💬 GPT 챗봇</h2>
-  <div id="chat-box" style="border:1px solid #aaa; padding:10px; height:300px; overflow-y:auto;"></div>
-  <input id="user-input" type="text" placeholder="메시지를 입력하세요" style="width:70%;" />
-  <button onclick="send()">전송</button>
 
-  <script src="script.js"></script>
+  <form id="upload-form">
+    <input type="file" id="pdf-input" name="file" accept="application/pdf" required />
+    <button type="submit">📤 PDF 업로드</button>
+  </form>
+
+  <div id="messages"></div>
+
+  <form id="chat-form">
+    <input id="input" type="text" placeholder="질문을 입력하세요" required />
+    <button type="submit">전송</button>
+  </form>
+
+  <script>
+    const messagesDiv = document.getElementById('messages');
+    const input = document.getElementById('input');
+
+    document.getElementById('upload-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fileInput = document.getElementById('pdf-input');
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+
+      const res = await fetch("/upload_pdf", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+      addMessage("📤 " + data.status, "gpt");
+    });
+
+    document.getElementById('chat-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const question = input.value.trim();
+      if (!question) return;
+
+      addMessage(question, "user");
+      addMessage("GPT가 답변 중입니다...", "gpt", true);
+
+      const res = await fetch("/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question })
+      });
+
+      const data = await res.json();
+      removeLoading();
+      addMessage(data.answer, "gpt");
+      input.value = "";
+    });
+
+    function addMessage(text, role, isLoading = false) {
+      const div = document.createElement('div');
+      div.className = `message ${role}`;
+      if (isLoading) div.classList.add("loading");
+      div.textContent = text;
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function removeLoading() {
+      const loaders = document.querySelectorAll('.loading');
+      loaders.forEach(el => el.remove());
+    }
+  </script>
 </body>
 </html>

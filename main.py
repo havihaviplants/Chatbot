@@ -24,6 +24,10 @@ pdf_context = ""
 class Question(BaseModel):
     question: str
 
+@app.get("/")
+def read_root():
+    return {"message": "✅ GPT 챗봇 시스템이 작동 중입니다. /upload_pdf → /ask 순서로 사용하세요."}
+
 @app.post("/upload_pdf")
 async def upload_pdf(file: UploadFile = File(...)):
     global pdf_context

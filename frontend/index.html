@@ -2,143 +2,76 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>GPT 챗봇</title>
+  <title>GPT PDF 챗봇</title>
   <style>
-    body {
-      font-family: sans-serif;
-      max-width: 600px;
-      margin: 50px auto;
-      padding: 20px;
-      background: #f8f8f8;
-    }
-
-    h2 {
-      margin-bottom: 20px;
-    }
-
-    #messages {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 20px;
-      max-height: 400px;
-      overflow-y: auto;
-      padding: 10px;
-      background: #ffffff;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-    }
-
-    .message {
-      padding: 8px 12px;
-      border-radius: 8px;
-      max-width: 80%;
-      font-size: 14px;
-      white-space: pre-wrap;
-    }
-
-    .gpt {
-      background-color: #f0f0f0;
-      color: #333;
-      align-self: flex-start;
-    }
-
-    .user {
-      background-color: #cce5ff;
-      color: #000;
-      align-self: flex-end;
-    }
-
-    .loading {
-      font-style: italic;
-      color: #888;
-      animation: blink 1s infinite;
-    }
-
-    @keyframes blink {
-      0% { opacity: 0.2; }
-      50% { opacity: 1; }
-      100% { opacity: 0.2; }
-    }
-
-    input[type="text"] {
-      width: 100%;
-      padding: 10px;
-      font-size: 14px;
-    }
-
-    button {
-      margin-top: 10px;
-      padding: 8px 12px;
-    }
+    body { font-family: sans-serif; margin: 40px; }
+    #chat-box { border: 1px solid #ccc; padding: 10px; max-height: 400px; overflow-y: auto; }
+    .message { margin: 10px 0; }
+    .bot { color: blue; }
+    .user { color: green; }
   </style>
 </head>
 <body>
-  <h2>💬 GPT 챗봇</h2>
-
-  <form id="upload-form">
-    <input type="file" id="pdf-input" name="file" accept="application/pdf" required />
-    <button type="submit">📤 PDF 업로드</button>
-  </form>
-
-  <div id="messages"></div>
-
-  <form id="chat-form">
-    <input id="input" type="text" placeholder="질문을 입력하세요" required />
-    <button type="submit">전송</button>
-  </form>
+  <h1>💬 GPT 챗봇</h1>
+  <input type="file" id="pdfFile" />
+  <button onclick="uploadPDF()">📤 PDF 업로드</button>
+  <br /><br />
+  <div id="chat-box"></div>
+  <input type="text" id="questionInput" placeholder="질문을 입력하세요" />
+  <button onclick="sendQuestion()">전송</button>
 
   <script>
-    const messagesDiv = document.getElementById('messages');
-    const input = document.getElementById('input');
+    const backendUrl = "http://localhost:8000"; // Render 배포 시 이 부분을 해당 URL로 바꿔라
 
-    document.getElementById('upload-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const fileInput = document.getElementById('pdf-input');
+    async function uploadPDF() {
+      const fileInput = document.getElementById("pdfFile");
+      if (fileInput.files.length === 0) return alert("파일을 선택하세요.");
+
       const formData = new FormData();
       formData.append("file", fileInput.files[0]);
 
-      const res = await fetch("/upload_pdf", {
-        method: "POST",
-        body: formData
-      });
-
-      const data = await res.json();
-      addMessage("📤 " + data.status, "gpt");
-    });
-
-    document.getElementById('chat-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const question = input.value.trim();
-      if (!question) return;
-
-      addMessage(question, "user");
-      addMessage("GPT가 답변 중입니다...", "gpt", true);
-
-      const res = await fetch("/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question })
-      });
-
-      const data = await res.json();
-      removeLoading();
-      addMessage(data.answer, "gpt");
-      input.value = "";
-    });
-
-    function addMessage(text, role, isLoading = false) {
-      const div = document.createElement('div');
-      div.className = `message ${role}`;
-      if (isLoading) div.classList.add("loading");
-      div.textContent = text;
-      messagesDiv.appendChild(div);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      try {
+        const response = await fetch(`${backendUrl}/upload_pdf`, {
+          method: "POST",
+          body: formData
+        });
+        const result = await response.json();
+        alert(result.message || "PDF 업로드 완료");
+      } catch (err) {
+        alert("PDF 업로드 실패");
+      }
     }
 
-    function removeLoading() {
-      const loaders = document.querySelectorAll('.loading');
-      loaders.forEach(el => el.remove());
+    async function sendQuestion() {
+      const input = document.getElementById("questionInput");
+      const question = input.value;
+      if (!question.trim()) return;
+
+      const chatBox = document.getElementById("chat-box");
+
+      const userMsg = document.createElement("div");
+      userMsg.classList.add("message", "user");
+      userMsg.textContent = `🙋‍♂️ ${question}`;
+      chatBox.appendChild(userMsg);
+
+      input.value = "";
+
+      const botMsg = document.createElement("div");
+      botMsg.classList.add("message", "bot");
+      botMsg.textContent = "🤖 GPT 응답 중...";
+      chatBox.appendChild(botMsg);
+
+      try {
+        const response = await fetch(`${backendUrl}/ask`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question })
+        });
+        const data = await response.json();
+        botMsg.textContent = `🤖 ${data.answer || "응답 없음"}`;
+      } catch (err) {
+        botMsg.textContent = "❌ GPT 응답 실패";
+      }
     }
   </script>
 </body>

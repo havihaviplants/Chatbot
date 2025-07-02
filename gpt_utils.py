@@ -1,17 +1,22 @@
-# 📄 [gpt_utils.py]
+import os
+import re
+from dotenv import load_dotenv
+from openai import OpenAI
+
 
 def gpt_answer(question: str, context: str) -> str:
-    import openai
-    import os
-    from dotenv import load_dotenv
+    """
+    GPT 응답 생성 (PDF 문서 기반 질문 응답용)
+    최신 openai 라이브러리 호환 (openai>=1.3.0)
+    """
 
-    load_dotenv()  # .env 로드
+    load_dotenv()
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("❌ OPENAI_API_KEY 누락")
-    openai.api_key = api_key
 
-    # ✅ 문서 기반 응답을 강제하는 프롬프트 구성
+    client = OpenAI(api_key=api_key)
+
     prompt = f"""
 당신은 고객 응대를 돕는 AI 어시스턴트입니다.
 다음은 내부 PDF 문서에서 추출한 참고 정보입니다. 이 정보를 기반으로 사용자의 질문에 성실히 답변해주세요.
@@ -29,25 +34,22 @@ def gpt_answer(question: str, context: str) -> str:
 """
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             max_tokens=512,
         )
-        return f"📄 PDF 기반 응답입니다:\n\n{response.choices[0].message['content'].strip()}"
 
+        return f"📄 PDF 기반 응답입니다:\n\n{response.choices[0].message.content.strip()}"
 
     except Exception as e:
-        return f"GPT 호출 오류: {str(e)}"
+        return f"❌ GPT 호출 오류: {str(e)}"
 
-import re
 
 def answer_from_pdf(text: str, question: str) -> str:
     """
     질문과 관련된 문맥을 PDF 텍스트에서 추출하여 GPT 입력용으로 반환
-    - 문단 분리는 유연하게 처리 (빈 줄, 마침표 후 개행 등)
-    - 키워드 기반 필터링
     """
 
     # 1. 문단 분리: 빈 줄 또는 마침표 후 줄바꿈 기준
